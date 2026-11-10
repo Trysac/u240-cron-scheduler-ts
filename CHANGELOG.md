@@ -9,4 +9,5 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- Added cron parsing, occurrence computation with DST handling, lock port with in-memory implementation, and a scheduler with overlap and catch-up policies.
 - Initial project structure from the factory utility template.
