@@ -1,0 +1,109 @@
+# Semgrep CE rules owned by the factory (MIT, like this repository). The semgrep gate in scripts/check.mjs runs
+# only this file; Semgrep-maintained registry rules are never used (their license forbids distribution and
+# service use). Every rule is ERROR: a match fails the gate. Factory-owned file: agents must not edit it.
+rules:
+  - id: fabrica.typescript.child-process-exec-dynamic
+    languages: [typescript, javascript]
+    severity: ERROR
+    message: exec( and execSync( run their command through a shell; a built command string allows command injection. Use execFile or spawn with an argument array.
+    # Scoped to child_process: RegExp.prototype.exec and other exec methods are ordinary code (lexers, parsers).
+    patterns:
+      - pattern-either:
+          - patterns:
+              - pattern-either:
+                  - pattern-inside: |
+                      import { ..., exec, ... } from "$MOD";
+                      ...
+                  - pattern-inside: |
+                      import { ..., execSync, ... } from "$MOD";
+                      ...
+                  - pattern-inside: |
+                      const { ..., exec, ... } = require("$MOD");
+                      ...
+                  - pattern-inside: |
+                      const { ..., execSync, ... } = require("$MOD");
+                      ...
+              - pattern-either:
+                  - pattern: exec($CMD, ...)
+                  - pattern: execSync($CMD, ...)
+          - patterns:
+              - pattern-either:
+                  - pattern-inside: |
+                      import * as $CP from "$MOD";
+                      ...
+                  - pattern-inside: |
+                      import $CP from "$MOD";
+                      ...
+                  - pattern-inside: |
+                      const $CP = require("$MOD");
+                      ...
+              - pattern-either:
+                  - pattern: $CP.exec($CMD, ...)
+                  - pattern: $CP.execSync($CMD, ...)
+          # Renamed imports: `import { exec as run }` and `const { exec: run } = require(...)`.
+          - patterns:
+              - pattern-either:
+                  - pattern-inside: |
+                      import { ..., exec as $RUN, ... } from "$MOD";
+                      ...
+                  - pattern-inside: |
+                      import { ..., execSync as $RUN, ... } from "$MOD";
+                      ...
+                  - pattern-inside: |
+                      const { ..., exec: $RUN, ... } = require("$MOD");
+                      ...
+                  - pattern-inside: |
+                      const { ..., execSync: $RUN, ... } = require("$MOD");
+                      ...
+              - pattern: $RUN($CMD, ...)
+              - pattern-not: $RUN("...", ...)
+          - pattern: require("$MOD").exec($CMD, ...)
+          - pattern: require("$MOD").execSync($CMD, ...)
+      - metavariable-regex:
+          metavariable: $MOD
+          regex: ^(node:)?child_process$
+      - pattern-not: exec("...", ...)
+      - pattern-not: execSync("...", ...)
+      - pattern-not: $CP.exec("...", ...)
+      - pattern-not: $CP.execSync("...", ...)
+  - id: fabrica.typescript.child-process-shell-true
+    languages: [typescript, javascript]
+    severity: ERROR
+    message: "A child process started with shell: true runs through a shell (command injection). Drop the shell option."
+    pattern: "$F(..., {..., shell: true, ...}, ...)"
+  - id: fabrica.typescript.eval-dynamic
+    languages: [typescript, javascript]
+    severity: ERROR
+    message: eval(, new Function( and string timers run arbitrary code. Parse the input instead.
+    pattern-either:
+      - patterns:
+          - pattern: eval($X)
+          - pattern-not: eval("...")
+      - pattern: new Function(...)
+      - pattern: Function(...)
+      - pattern: setTimeout("...", ...)
+      - pattern: setInterval("...", ...)
+  - id: fabrica.typescript.unsafe-deserialization
+    languages: [typescript, javascript]
+    severity: ERROR
+    message: node-serialize unserialize and js-yaml unsafe schemas execute code while loading untrusted data. Use JSON.parse or yaml.load with the default schema.
+    pattern-either:
+      - pattern: $S.unserialize(...)
+      - pattern: "$Y.load($X, {..., schema: $Y.DEFAULT_FULL_SCHEMA, ...})"
+  - id: fabrica.typescript.tls-verification-disabled
+    languages: [typescript, javascript]
+    severity: ERROR
+    message: "TLS certificate verification is disabled (rejectUnauthorized: false), so any server can impersonate the real one."
+    pattern-either:
+      - pattern: "{..., rejectUnauthorized: false, ...}"
+      - pattern: process.env.NODE_TLS_REJECT_UNAUTHORIZED = $X
+  - id: fabrica.typescript.hardcoded-secret
+    languages: [typescript, javascript]
+    severity: ERROR
+    message: A credential (private key, AKIA access key, GitHub, Slack or Stripe token) is hard-coded in the source. Read it from the environment.
+    pattern-either:
+      - pattern-regex: -----BEGIN (RSA |EC |DSA |OPENSSH |ENCRYPTED )?PRIVATE KEY-----
+      - pattern-regex: \b(AKIA|ASIA)[0-9A-Z]{16}\b
+      - pattern-regex: \bgh[pousr]_[A-Za-z0-9]{36}\b
+      - pattern-regex: \bxox[baprs]-[A-Za-z0-9-]{10,}\b
+      - pattern-regex: \bsk_live_[A-Za-z0-9]{24,}\b
