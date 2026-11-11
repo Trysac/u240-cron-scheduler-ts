@@ -1,23 +1,27 @@
 # Stack
 
-## Used
+## Runtime
 
-| Tool | Purpose | Why |
-|---|---|---|
-| TypeScript (strict) | Language and type checking | Typed public API and declarations for consumers. |
-| Node.js 20+ | Runtime | Maintained LTS lines with native ES modules. |
-| Vitest + `@vitest/coverage-v8` | Tests and coverage | Fast, ESM-native, runs TypeScript without a build step. |
-| Biome | Lint and format | One fast tool for both, single config file. |
-| gitleaks | Secret scanning | Standard scanner; runs locally and in CI. |
-| GitHub Actions + Dependabot | CI wrapper and updates | Runs the same local gates on Linux and Windows. |
+- **Node.js 20+**, ES modules. The package is published as ESM with type declarations.
+- **No runtime dependencies.** Time-zone handling uses the ECMAScript `Intl.DateTimeFormat` API with a
+  `timeZone` and `hourCycle: "h23"`, which is available in every supported Node.js version.
+- **TypeScript** in strict mode; relative imports use the `.js` extension so the emitted ESM works unchanged.
 
-## Discarded
+## Development
 
-| Tool | Why not |
+| Tool | Purpose |
 |---|---|
-| ESLint + Prettier | Two tools and several configs where Biome covers both. |
-| Jest | Needs extra transforms for ESM and TypeScript; slower. |
-| Shell scripts for gates | Not portable to Windows; the gate runner is a Node script. |
-| Bundlers (tsup, Rollup) | Unneeded for a small ESM library; `tsc` emits what is published. |
+| TypeScript | Type checking and `dist/` build. |
+| Vitest | Test runner with V8 coverage. |
+| Biome | Formatting and linting. |
 
-Add a row whenever a dependency or tool is added or rejected.
+## Considered and discarded
+
+- **`node-cron` / `croner`**: rely on real timers and implicit time-zone behavior, which makes DST and
+  multi-replica behavior hard to test deterministically. This library uses an injected clock, a stated DST
+  policy and per-occurrence locking instead.
+- **Date libraries (`luxon`, `date-fns-tz`, `moment-timezone`)**: add runtime weight for a small amount of
+  conversion logic that `Intl` already covers.
+- **Distributed lock clients (Redis, Postgres)**: kept out of the core. `LockPort` is the extension point.
+- **Cron parser packages**: the grammar is small and a hand-written parser gives exact `invalid_cron`
+  behavior.
