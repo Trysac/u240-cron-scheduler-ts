@@ -41,10 +41,10 @@
     "prepublishOnly": "npm run build"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.6.4",
+    "@biomejs/biome": "^2.6.8",
     "@types/node": "^26.6.6",
-    "@vitest/coverage-v8": "^5.0.5",
-    "eslint": "10.14.0",
+    "@vitest/coverage-v8": "^5.1.1",
+    "eslint": "10.15.0",
     "eslint-plugin-security": "4.2.1",
     "typescript": "^7.0.2",
     "vitest": "^5.0.5"
